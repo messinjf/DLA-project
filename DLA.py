@@ -15,6 +15,27 @@ def random_direction(dimension):
     direction[idx] = np.sign(np.random.uniform(-1.0,1.0))
     return direction
 
+def random_valid_direction(point, matrix):
+    """ Will return a random direction that will not lead the
+    particle into another particle. """
+    x = int(point[0])
+    y = int(point[1])
+    choices = []
+    for i in [-1, 0, 1]:
+        for j in [-1, 0, 1]:
+            neighbor = np.array([x + i, y + j])
+            if ((is_inbound(neighbor, matrix))  # make sure neighbor is inbounds
+                    and abs(i)+abs(j) < 2       # don't check NE, SE, SW, NW corners
+                    and abs(i)+abs(j) > 0       # don't allow stationary movement
+                    and matrix[neighbor[0]][neighbor[1]] == 0): 
+                choices.append(np.array([i,j]))
+    # No neighbor found so return false
+    if(len(choices) == 0):
+        print("Warning: created particle was trapped and had no available movement.")
+        return np.zeros(2)
+    idx = np.random.randint(len(choices))
+    return choices[idx]
+
 def is_inbound(point, matrix):
     """ Determines if the specified point is inbounds of the
     given matrix. """
@@ -55,7 +76,7 @@ def random_normal_vector():
     R[1,1] = np.cos(theta)
     return np.dot(R, direction)
 
-def DLA(iterations, N=40, M=16):
+def DLA(particles, N=40, M=16, sticking_probablity=1.0):
     matrix = np.zeros((N,N))
     center = np.array([N//2, N//2])
     
@@ -73,7 +94,7 @@ def DLA(iterations, N=40, M=16):
             
     images.append(np.copy(matrix))
     
-    for i in range(iterations):
+    while(numberOfSuccessfulSticks < particles):
         
         # Initialize a random walker at a position around a circle of diameter
         # M. Note that this is different from the book where the boundary of a
@@ -81,24 +102,26 @@ def DLA(iterations, N=40, M=16):
         random_walker = np.round(center + (M / 2.0) * random_normal_vector())
         
         while(is_inbound(random_walker, matrix)):
-            random_walker += random_direction(2)
+            #random_walker += random_direction(2)
+            random_walker += random_valid_direction(random_walker, matrix)
             
             if(has_neighbor(random_walker, matrix)):
-                
-                # particle has successfully sticked to the seed, so update
-                # the matrix and add the matrix to the list of images
-                x = random_walker[0]
-                y = random_walker[1]
-                matrix[int(x),int(y)] = 1
-                numberOfSuccessfulSticks += 1
-                images.append(np.copy(matrix))
-                break
-        
-    print(numberOfSuccessfulSticks)      
+                # The particle has neighbors, so check to see if the particle
+                # sticks.
+                if(np.random.rand() <= sticking_probablity):
+                    # particle has successfully sticked to the seed, so update
+                    # the matrix and add the matrix to the list of images
+                    x = random_walker[0]
+                    y = random_walker[1]
+                    matrix[int(x),int(y)] = 1
+                    numberOfSuccessfulSticks += 1
+                    images.append(np.copy(matrix))
+                    break
+       
     return images
 
 if __name__ == "__main__":
-    images = DLA(200)
+    images = DLA(100)
     plt.imshow(images[-1])
     plt.show()
     

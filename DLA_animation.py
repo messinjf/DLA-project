@@ -4,15 +4,16 @@ from matplotlib import animation
 
 import DLA
 
-ITERATIONS = 100
+PARTICLES = 100
 N = 40
 M = 16
+STICKING_PROBABILITY = 1.0
 
-images = DLA.DLA(ITERATIONS, N, M)
+images = DLA.DLA(PARTICLES, N, M, STICKING_PROBABILITY)
 
 # Initialize figure
 fig = plt.figure()
-plt.title("Iterations = {}; N = {}; M = {}".format(ITERATIONS, N, M))
+plt.title("Particles = {}; N = {}; M = {}: prob = {}".format(PARTICLES, N, M, STICKING_PROBABILITY))
 
 # Show the first image, and specify to allow for animations
 im = plt.imshow(images[0], animated=True)
@@ -23,10 +24,10 @@ def update(i):
     return im,
 
 movie = animation.FuncAnimation(fig, update, frames=len(images), repeat=False, interval=50, blit=True)
-plt.show()
+#plt.show()
 
 # Create the animation
 # NOTE: You must have FFMPEG installed and in your path to actually create the
 # animation
-#writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
-#movie.save('basic_animation.mp4', writer=writer)
+writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
+movie.save('basic_animation.mp4', writer=writer)
