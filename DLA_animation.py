@@ -4,10 +4,13 @@ from matplotlib import animation
 
 import DLA
 
-PARTICLES = 100
-N = 40
-M = 16
-STICKING_PROBABILITY = 1.0
+# Matplotlib needs to know where ffmpeg is located.
+plt.rcParams['animation.ffmpeg_path'] = 'C:\\ffmpeg\\bin'
+
+PARTICLES = 200
+N = 60
+M = 45
+STICKING_PROBABILITY = 0.1
 
 images = DLA.DLA(PARTICLES, N, M, STICKING_PROBABILITY)
 
@@ -23,11 +26,11 @@ def update(i):
     im.set_array(images[i])
     return im,
 
-movie = animation.FuncAnimation(fig, update, frames=len(images), repeat=False, interval=50, blit=True)
-#plt.show()
+movie = animation.FuncAnimation(fig, update, frames=len(images), repeat=True, interval=50, blit=True)
+plt.show()
 
 # Create the animation
 # NOTE: You must have FFMPEG installed and in your path to actually create the
 # animation
-writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
-movie.save('basic_animation.mp4', writer=writer)
+#writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
+#movie.save('basic_animation.mp4', writer=writer)

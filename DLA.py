@@ -101,9 +101,15 @@ def DLA(particles, N=40, M=16, sticking_probablity=1.0):
         # square is chosen instead.
         random_walker = np.round(center + (M / 2.0) * random_normal_vector())
         
+        # Deal with the case where the walker spawns on an already occupied
+        # space
+        while (matrix[int(random_walker[0]), int(random_walker[1])] == 1):
+            random_walker = np.round(center + (M / 2.0) * random_normal_vector())
+        
         while(is_inbound(random_walker, matrix)):
             #random_walker += random_direction(2)
             random_walker += random_valid_direction(random_walker, matrix)
+            
             
             if(has_neighbor(random_walker, matrix)):
                 # The particle has neighbors, so check to see if the particle
