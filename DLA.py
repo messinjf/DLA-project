@@ -77,6 +77,9 @@ def get_radius_of_point(point, matrix):
     return np.linalg.norm(np.array(point) - center)
 
 def get_max_radius_of_structure(matrix):
+    """ Returns the maximum radius of the structure. This information
+    is required in order to do the optimizations associated with Project 10
+    and Project 11. """
     max_r = 0
     for i in range(len(matrix)):
         for j in range(len(matrix[i])):
@@ -114,6 +117,7 @@ def DLA(particles, N=100, sticking_probablity=1.0):
         for j in range(2):
             matrix[center[0]+i, center[1]+j] = 1
             
+    # Save the initial configuration so that it can be played back later.
     images.append(np.copy(matrix))
     
     while(numberOfSuccessfulSticks < particles):
@@ -128,15 +132,16 @@ def DLA(particles, N=100, sticking_probablity=1.0):
         
         # We spawn a random walker at 2 times the max radius of the structure.
         # This check is to make sure that particles can't spawn outside of the
-        # array
+        # grid
         assert(2 * launching_radius < N)
+        
         # Initialize a random walker at a position around a circle of radius
         # 2 times the max_radius.
         # Note that this is different from the book where the boundary of a
         # square is chosen instead.
         random_walker = np.round(center + launching_radius * random_normal_vector())
         
-        # Should not spawn on a particle unless we have done something wrong.
+        # Should not spawn on a particle now unless we have done something wrong.
         assert(matrix[int(random_walker[0]), int(random_walker[1])] != 1)
         
         while(is_inbound(random_walker, matrix, despawn_radius)):
@@ -144,7 +149,7 @@ def DLA(particles, N=100, sticking_probablity=1.0):
             # Get a random direction for the walker to travel in.
             random_direction = random_valid_direction(random_walker, matrix)
             
-            # Another optimization. If the walker is more than 4 spaces
+            # Optimization from Project 11. If the walker is more than 4 spaces
             # away from the structure, then we can increase the step size
             # of the random walk. See project 11 for details.
             current_radius = get_radius_of_point(random_walker, matrix)
@@ -155,11 +160,12 @@ def DLA(particles, N=100, sticking_probablity=1.0):
             
             random_walker += random_direction
             
-            
             if(has_neighbor(random_walker, matrix)):
+                
                 # The particle has neighbors, so check to see if the particle
                 # sticks.
                 if(np.random.rand() <= sticking_probablity):
+                    
                     # particle has successfully sticked to the seed, so update
                     # the matrix and add the matrix to the list of images
                     x = random_walker[0]

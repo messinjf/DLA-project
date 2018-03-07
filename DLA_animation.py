@@ -10,12 +10,12 @@ PARTICLES = 300
 N = 200
 STICKING_PROBABILITY = 1.0
 
-def remove_emptiness_in_image(images):
-    """ Our structure is small compared to the actual animation at the moment,
-    this is due to the fact that our spawning circle must also be inside the
-    matrix, which is now 2 times the max radius of the structure. What we could
-    do is clip each image based on the size of the final structure, so that the
-    structure better fits inside of the plot. """
+def prune_empty_space(images):
+    """ Our structure is small compared to the actual grid. This is due to the
+    fact that our spawning circle must also be inside the matrix, which is now
+    2 times the max radius of the structure. This method solves this issue
+    by removing rows and columns that are outside of the max radius of the
+    final structure. """
     final_image = images[-1]
     max_radius = int(np.ceil(DLA.get_max_radius_of_structure(final_image)))
     center_i = int(final_image.shape[0]//2)
@@ -27,7 +27,7 @@ def remove_emptiness_in_image(images):
     return images
 
 images = DLA.DLA(PARTICLES, N, STICKING_PROBABILITY)
-images = remove_emptiness_in_image(images)
+images = prune_empty_space(images)
 
 # Initialize figure
 fig = plt.figure()
@@ -42,7 +42,7 @@ def update(i):
     return im,
 
 movie = animation.FuncAnimation(fig, update, frames=len(images), repeat=True, interval=50, blit=True)
-#plt.show()
+plt.show()
 
 # Create the animation
 # NOTE: You must have FFMPEG installed and in your path to actually create the
@@ -51,5 +51,5 @@ movie = animation.FuncAnimation(fig, update, frames=len(images), repeat=True, in
 # the best way to do it was to install it through anaconda with the following
 # command:
 #           conda install -c conda-forge ffmpeg
-writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
-movie.save('prob_100.mp4', writer=writer)
+#writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
+#movie.save('prob_100.mp4', writer=writer)
