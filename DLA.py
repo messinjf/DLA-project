@@ -89,17 +89,21 @@ def get_max_radius_of_structure(matrix):
                 if r > max_r:
                     max_r = r
     return max_r
-  
-def random_normal_vector():
-    """ returns a random 2D unit vector. """
-    direction = np.array([1.0, 0.0])
-    theta = np.random.uniform(0.0, 2.0 * np.pi)
+
+
+def rotate(theta):
     R = np.zeros((2,2))
     R[0,0] = np.cos(theta)
     R[0,1] = -np.sin(theta)
     R[1,0] = np.sin(theta)
     R[1,1] = np.cos(theta)
-    return np.dot(R, direction)
+    return R
+  
+def random_normal_vector():
+    """ returns a random 2D unit vector. """
+    direction = np.array([1.0, 0.0])
+    theta = np.random.uniform(0.0, 2.0 * np.pi)
+    return np.dot(rotate(theta), direction)
 
 def DLA(particles, N=100, sticking_probablity=1.0):
     matrix = np.zeros((N,N))
@@ -120,13 +124,14 @@ def DLA(particles, N=100, sticking_probablity=1.0):
     # Save the initial configuration so that it can be played back later.
     images.append(np.copy(matrix))
     
-    while(numberOfSuccessfulSticks < particles):
-        
-        # Determine the max radius of the structure. This information
+    # Determine the max radius of the structure. This information
         # is used to speed up the simulation by adjusting the launching
         # circle to be at 2 times the max radius, and to remove particles
         # that are 3 times the max radius. See project 10 for details.
-        max_radius = get_max_radius_of_structure(matrix)
+    max_radius = get_max_radius_of_structure(matrix)
+    
+    while(numberOfSuccessfulSticks < particles):
+        
         launching_radius = np.round(2.0 * max_radius)
         despawn_radius = np.round(3.0 * max_radius)
         
@@ -154,7 +159,7 @@ def DLA(particles, N=100, sticking_probablity=1.0):
             # of the random walk. See project 11 for details.
             current_radius = get_radius_of_point(random_walker, matrix)
             if current_radius > max_radius + 4:
-                step_size = int(np.round(current_radius - max_radius - 2))
+                step_size = int(np.ceil(current_radius - max_radius - 2))
                 assert(step_size >= 1)
                 random_direction *= step_size
             
@@ -167,10 +172,37 @@ def DLA(particles, N=100, sticking_probablity=1.0):
                 if(np.random.rand() <= sticking_probablity):
                     
                     # particle has successfully sticked to the seed, so update
-                    # the matrix and add the matrix to the list of images
-                    x = random_walker[0]
-                    y = random_walker[1]
-                    matrix[int(x),int(y)] = 1
+                    # the matrix and add the matrix to the list of images                    
+                    final_dir = center - random_walker
+                    
+                    #for i in range(6):
+                    #    angle = np.pi/3 * i
+                    #    direction = np.dot(rotate(angle), final_dir)
+                    #    pos = direction + center
+                    #    matrix[int(round(pos[0])), int(round(pos[1]))] = 1
+                               
+                    #random_walker[0] += 2 * (center[0] - random_walker[0])
+                    
+                    #final_dir = center - random_walker
+                    
+                    #for i in range(6):
+                    #    angle = np.pi/3 * i
+                    #    direction = np.dot(rotate(angle), final_dir)
+                    #    pos = direction + center
+                    #    matrix[int(round(pos[0])), int(round(pos[1]))] = 1
+                    
+                    
+                    matrix[int(random_walker[0]),int(random_walker[1])] = 1
+                    #matrix[int(x)+2*(center[0]-int(x)),int(y)] = 1
+                    #matrix[int(x),int(y)+2*(center[1]-int(y))] = 1
+                    #matrix[int(x)+2*(center[0]-int(x)),int(y)+2*(center[1]-int(y))] = 1
+                    
+                    # Update max_radius if new particle is outside the radius
+                    # of the structure
+                    walker_radius = get_radius_of_point(random_walker,matrix)
+                    if(walker_radius > max_radius):
+                        max_radius = walker_radius
+                           
                     numberOfSuccessfulSticks += 1
                     images.append(np.copy(matrix))
                     break
@@ -179,7 +211,7 @@ def DLA(particles, N=100, sticking_probablity=1.0):
 
 if __name__ == "__main__":
     t0 = time.time()
-    images = DLA(100)
+    images = DLA(1000, 200, 1)
     t1 = time.time()
     plt.imshow(images[-1])
     plt.show()

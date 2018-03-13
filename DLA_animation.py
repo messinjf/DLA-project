@@ -1,14 +1,15 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation
+import scipy.ndimage as ndimage
 
 import DLA
 
 
 
-PARTICLES = 300
+PARTICLES = 100
 N = 200
-STICKING_PROBABILITY = 1.0
+STICKING_PROBABILITY = 1
 
 def prune_empty_space(images):
     """ Our structure is small compared to the actual grid. This is due to the
@@ -28,6 +29,7 @@ def prune_empty_space(images):
 
 images = DLA.DLA(PARTICLES, N, STICKING_PROBABILITY)
 images = prune_empty_space(images)
+#images = [ndimage.gaussian_filter(image, sigma=(3, 3), order=0) for image in images]
 
 # Initialize figure
 fig = plt.figure()
@@ -52,4 +54,4 @@ plt.show()
 # command:
 #           conda install -c conda-forge ffmpeg
 #writer = animation.FFMpegWriter(fps=30, codec=None, bitrate=None, extra_args=None, metadata=None)
-#movie.save('prob_100.mp4', writer=writer)
+#movie.save('gaussian_filter_snowflake_test.mp4', writer=writer)
