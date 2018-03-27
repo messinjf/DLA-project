@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import time
 
 DIRECTIONS = np.array([[-1,-1],[0,-1], [1,-1], [-1,0],[1,0],[-1,1], [0,1], [1,1]])
+#DIRECTIONS = np.array([[1,0],[-1,0],[0,1],[0,-1]])
 
 def random_direction(dimension):
     """
@@ -18,65 +19,42 @@ def random_direction(dimension):
     direction[idx] = np.sign(np.random.uniform(-1.0,1.0))
     return direction
 
-def random_valid_direction(point, matrix):
-    """ Will return a random direction that will not lead the
-    particle into another particle. """
-    x = int(point[0])
-    y = int(point[1])
-    choices = []
-    for i in [-1, 0, 1]:
-        for j in [-1, 0, 1]:
-            neighbor = np.array([x + i, y + j])
-            if ((is_inbound(neighbor, matrix))  # make sure neighbor is inbounds
-                    and abs(i)+abs(j) < 2       # don't check NE, SE, SW, NW corners
-                    and abs(i)+abs(j) > 0       # don't allow stationary movement
-                    and matrix[neighbor[0]][neighbor[1]] == 0): 
-                choices.append(np.array([i,j]))
-                
-    # No neighbor which means the particle is trapped. With the current
-    # technique, this situation should never happen
-    assert(len(choices) != 0)
-    
-    idx = np.random.randint(len(choices))
-    return choices[idx]
-
-
 def get_direction_that_points_towards_center(vector):
-    
-    # Get the index of the absolute max value (this is the index of the
-    # coordinate that most points toward the center.
-    
-    
-    
-    
     # Create the direction vector
     direction = np.zeros(2)
+    
+    forward_directions = []
     
     max_dot = 0
     for d in DIRECTIONS:
         dot_product = np.dot(vector, d / np.linalg.norm(d))
-        if(dot_product > max_dot):
-            max_dot = dot_product
-            direction = d
-    
+        if(dot_product > 0):
+            forward_directions.append(d)
+            if(dot_product > max_dot):
+                max_dot = dot_product
+                direction = d
         
-    return direction
+    assert(len(forward_directions) > 0 and len(forward_directions) <= len(DIRECTIONS)/2)
+    return direction, forward_directions
 
-def weighted_valid_direction(point, center, influence, matrix):
+def weighted_valid_direction(point, center, X, Y, matrix):
     """ Will return a random direction that will not lead the
     particle into another particle. This direction is weighted
     and is more likely to pick towards the center. Influence
     affects the weight and should be between 0 and 1"""
-    assert(influence >= 0 and influence <= 1)
+    assert(X >= 0 and X <= 1)
+    assert(Y >= 0 and Y <= 1)
     
     # Find the vector pointing toward the center
     center_direction = center - point
-    center_direction = get_direction_that_points_towards_center(center_direction)
+    center_direction, forward_directions = get_direction_that_points_towards_center(center_direction)
     
     # Weight for the direction pointing to the center
-    pointing_weight = influence + (1 - influence) / len(DIRECTIONS)
+    other_weights = (1-X) * (1-Y) /8.0
+    forward_weight = other_weights + X * (1-Y) * 5.0 / 8.0
+    pointing_weight = forward_weight + Y
     # Weight for the other directions
-    other_weights = (1 - influence) / len(DIRECTIONS)
+    
     
     weights = []
     choices = []
@@ -85,8 +63,14 @@ def weighted_valid_direction(point, center, influence, matrix):
         if ((is_inbound(neighbor, matrix))  # make sure neighbor is inbounds
                 and matrix[int(neighbor[0])][int(neighbor[1])] == 0):
             choices.append(np.copy(direction))
-            if(np.all(np.equal(direction, center_direction))):
-                weights.append(pointing_weight) 
+            for forward_direction in forward_directions:
+                if(np.all(np.equal(forward_direction, center_direction))):
+                    if(np.all(np.equal(direction, center_direction))):
+                        weights.append(pointing_weight)
+                        break
+                    else:
+                        weights.append(forward_weight)
+                        break
             else:
                 weights.append(other_weights) 
                 
@@ -101,6 +85,9 @@ def weighted_valid_direction(point, center, influence, matrix):
     
     
     #Normalize weights so that they sum up to 1
+    if(not np.sum(weights) > 0):
+        print(weights)
+        assert(np.sum(weights) > 0)
     weights /= np.sum(weights)
     
     idx = np.random.choice(len(choices), p=weights)
@@ -169,7 +156,7 @@ def random_normal_vector():
     theta = np.random.uniform(0.0, 2.0 * np.pi)
     return np.dot(rotate(theta), direction)
 
-def DLA(particles, N=100, sticking_probablity=1.0, Y=0.5):
+def DLA(particles, N=100, sticking_probablity=1.0, X=0.5, Y=0.5):
     matrix = np.zeros((N,N))
     center = np.array([N//2, N//2])
     
@@ -218,7 +205,7 @@ def DLA(particles, N=100, sticking_probablity=1.0, Y=0.5):
             # Get a random direction for the walker to travel in.
             # random_direction = random_valid_direction(random_walker, matrix)
             #Get a weighted random direction for the walker to travel in.
-            random_direction = weighted_valid_direction(random_walker, center, Y, matrix)
+            random_direction = weighted_valid_direction(random_walker, center, X, Y, matrix)
             
             # Optimization from Project 11. If the walker is more than 4 spaces
             # away from the structure, then we can increase the step size
@@ -227,13 +214,13 @@ def DLA(particles, N=100, sticking_probablity=1.0, Y=0.5):
             # TODO: This optimization has to be modified when diagonal directions
             # are allowed as the particle can move farther than intended in one
             # step
-            #current_radius /= np.sqrt(2)
-            if current_radius > max_radius + 4:
-                step_size = int(np.ceil(current_radius - max_radius - 2))
-                assert(step_size >= 1)
-                #random_direction = random_direction / np.linalg.norm(random_direction)
-                random_direction *= step_size
-                #random_direction = np.floor(random_direction)
+            # current_radius /= np.sqrt(2)
+#            if current_radius > max_radius + 4:
+#                step_size = int(np.floor(current_radius - max_radius - 2))
+#                assert(step_size >= 1)
+#                random_direction = random_direction / np.linalg.norm(random_direction)
+#                random_direction *= step_size
+#                random_direction = np.floor(random_direction)
                 #print(random_direction)
             
             random_walker += random_direction
@@ -251,8 +238,7 @@ def DLA(particles, N=100, sticking_probablity=1.0, Y=0.5):
                     # Update max_radius if new particle is outside the radius
                     # of the structure
                     walker_radius = get_radius_of_point(random_walker,matrix)
-                    if(walker_radius > max_radius):
-                        max_radius = walker_radius
+                    max_radius = max(max_radius, walker_radius)
                            
                     numberOfSuccessfulSticks += 1
                     images.append(np.copy(matrix))
@@ -278,9 +264,10 @@ def prune_empty_space(images):
 
 if __name__ == "__main__":
     t0 = time.time()
-    N = 1000
-    Y = 1.0
-    images = DLA(N, 200, 1, Y)
+    N = 200
+    X = 0.2
+    Y = 0.2
+    images = DLA(N, 200, 1, X, Y)
     images = prune_empty_space(images)
     t1 = time.time()
     title_string = "Number of particles: {}; Y: {}".format(N,Y)
