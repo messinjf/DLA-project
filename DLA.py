@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+DIRECTIONS = np.array([[-1,-1],[0,-1], [1,-1], [-1,0],[1,0],[-1,1], [0,1], [1,1]])
+
 def random_direction(dimension):
     """
     Return a random signed unit vector.
@@ -38,6 +40,72 @@ def random_valid_direction(point, matrix):
     idx = np.random.randint(len(choices))
     return choices[idx]
 
+
+def get_direction_that_points_towards_center(vector):
+    
+    # Get the index of the absolute max value (this is the index of the
+    # coordinate that most points toward the center.
+    
+    
+    
+    
+    # Create the direction vector
+    direction = np.zeros(2)
+    
+    max_dot = 0
+    for d in DIRECTIONS:
+        dot_product = np.dot(vector, d / np.linalg.norm(d))
+        if(dot_product > max_dot):
+            max_dot = dot_product
+            direction = d
+    
+        
+    return direction
+
+def weighted_valid_direction(point, center, influence, matrix):
+    """ Will return a random direction that will not lead the
+    particle into another particle. This direction is weighted
+    and is more likely to pick towards the center. Influence
+    affects the weight and should be between 0 and 1"""
+    assert(influence >= 0 and influence <= 1)
+    
+    # Find the vector pointing toward the center
+    center_direction = center - point
+    center_direction = get_direction_that_points_towards_center(center_direction)
+    
+    # Weight for the direction pointing to the center
+    pointing_weight = influence + (1 - influence) / len(DIRECTIONS)
+    # Weight for the other directions
+    other_weights = (1 - influence) / len(DIRECTIONS)
+    
+    weights = []
+    choices = []
+    for direction in DIRECTIONS:
+        neighbor = np.array(point + direction)
+        if ((is_inbound(neighbor, matrix))  # make sure neighbor is inbounds
+                and matrix[int(neighbor[0])][int(neighbor[1])] == 0):
+            choices.append(np.copy(direction))
+            if(np.all(np.equal(direction, center_direction))):
+                weights.append(pointing_weight) 
+            else:
+                weights.append(other_weights) 
+                
+    # No neighbor which means the particle is trapped. With the current
+    # technique, this situation should never happen
+    if(len(choices) == 0):
+        print(point)
+        matrix[int(point[0]),int(point[1])] = 2
+        plt.imshow(matrix)
+        plt.show()
+        assert(len(choices) != 0)
+    
+    
+    #Normalize weights so that they sum up to 1
+    weights /= np.sum(weights)
+    
+    idx = np.random.choice(len(choices), p=weights)
+    return choices[idx]
+
 def is_inbound(point, matrix, radius=None):
     """ Determines if the specified point is inbounds of the
     given matrix. If max_radius is not None, then it will also
@@ -58,15 +126,11 @@ def has_neighbor(point, matrix):
     considered nearby if it is 1 space north, east, south, or west of
     the current point. Also checks if there is already a particle on the
     point."""
-    x = int(point[0])
-    y = int(point[1])
-    for i in [-1, 0, 1]:
-        for j in [-1, 0, 1]:
-            neighbor = np.array([x + i, y + j])
-            if ((is_inbound(neighbor, matrix))  # make sure neighbor is inbounds
-                    and abs(i)+abs(j) < 2       # don't check NE, SE, SW, NW corners
-                    and matrix[neighbor[0]][neighbor[1]] == 1):
-                return True
+    for direction in DIRECTIONS:
+        neighbor = np.array(point + direction)
+        if ((is_inbound(neighbor, matrix))  # make sure neighbor is inbounds
+                and matrix[int(neighbor[0])][int(neighbor[1])] == 1):
+            return True
     # No neighbor found so return false
     return False
 
@@ -105,7 +169,7 @@ def random_normal_vector():
     theta = np.random.uniform(0.0, 2.0 * np.pi)
     return np.dot(rotate(theta), direction)
 
-def DLA(particles, N=100, sticking_probablity=1.0):
+def DLA(particles, N=100, sticking_probablity=1.0, Y=0.5):
     matrix = np.zeros((N,N))
     center = np.array([N//2, N//2])
     
@@ -125,9 +189,9 @@ def DLA(particles, N=100, sticking_probablity=1.0):
     images.append(np.copy(matrix))
     
     # Determine the max radius of the structure. This information
-        # is used to speed up the simulation by adjusting the launching
-        # circle to be at 2 times the max radius, and to remove particles
-        # that are 3 times the max radius. See project 10 for details.
+    # is used to speed up the simulation by adjusting the launching
+    # circle to be at 2 times the max radius, and to remove particles
+    # that are 3 times the max radius. See project 10 for details.
     max_radius = get_max_radius_of_structure(matrix)
     
     while(numberOfSuccessfulSticks < particles):
@@ -152,16 +216,25 @@ def DLA(particles, N=100, sticking_probablity=1.0):
         while(is_inbound(random_walker, matrix, despawn_radius)):
             
             # Get a random direction for the walker to travel in.
-            random_direction = random_valid_direction(random_walker, matrix)
+            # random_direction = random_valid_direction(random_walker, matrix)
+            #Get a weighted random direction for the walker to travel in.
+            random_direction = weighted_valid_direction(random_walker, center, Y, matrix)
             
             # Optimization from Project 11. If the walker is more than 4 spaces
             # away from the structure, then we can increase the step size
             # of the random walk. See project 11 for details.
             current_radius = get_radius_of_point(random_walker, matrix)
+            # TODO: This optimization has to be modified when diagonal directions
+            # are allowed as the particle can move farther than intended in one
+            # step
+            #current_radius /= np.sqrt(2)
             if current_radius > max_radius + 4:
                 step_size = int(np.ceil(current_radius - max_radius - 2))
                 assert(step_size >= 1)
+                #random_direction = random_direction / np.linalg.norm(random_direction)
                 random_direction *= step_size
+                #random_direction = np.floor(random_direction)
+                #print(random_direction)
             
             random_walker += random_direction
             
@@ -172,30 +245,8 @@ def DLA(particles, N=100, sticking_probablity=1.0):
                 if(np.random.rand() <= sticking_probablity):
                     
                     # particle has successfully sticked to the seed, so update
-                    # the matrix and add the matrix to the list of images                    
-                    final_dir = center - random_walker
-                    
-                    #for i in range(6):
-                    #    angle = np.pi/3 * i
-                    #    direction = np.dot(rotate(angle), final_dir)
-                    #    pos = direction + center
-                    #    matrix[int(round(pos[0])), int(round(pos[1]))] = 1
-                               
-                    #random_walker[0] += 2 * (center[0] - random_walker[0])
-                    
-                    #final_dir = center - random_walker
-                    
-                    #for i in range(6):
-                    #    angle = np.pi/3 * i
-                    #    direction = np.dot(rotate(angle), final_dir)
-                    #    pos = direction + center
-                    #    matrix[int(round(pos[0])), int(round(pos[1]))] = 1
-                    
-                    
+                    # the matrix and add the matrix to the list of images
                     matrix[int(random_walker[0]),int(random_walker[1])] = 1
-                    #matrix[int(x)+2*(center[0]-int(x)),int(y)] = 1
-                    #matrix[int(x),int(y)+2*(center[1]-int(y))] = 1
-                    #matrix[int(x)+2*(center[0]-int(x)),int(y)+2*(center[1]-int(y))] = 1
                     
                     # Update max_radius if new particle is outside the radius
                     # of the structure
@@ -209,10 +260,31 @@ def DLA(particles, N=100, sticking_probablity=1.0):
        
     return images
 
+def prune_empty_space(images):
+    """ Our structure is small compared to the actual grid. This is due to the
+    fact that our spawning circle must also be inside the matrix, which is now
+    2 times the max radius of the structure. This method solves this issue
+    by removing rows and columns that are outside of the max radius of the
+    final structure. """
+    final_image = images[-1]
+    max_radius = int(np.ceil(get_max_radius_of_structure(final_image)))
+    center_i = int(final_image.shape[0]//2)
+    center_j = int(final_image.shape[1]//2)
+    
+    for k in range(len(images)):
+        images[k] = images[k][center_i-max_radius:center_i+max_radius,center_j-max_radius:center_j+max_radius]
+    
+    return images
+
 if __name__ == "__main__":
     t0 = time.time()
-    images = DLA(1000, 200, 1)
+    N = 1000
+    Y = 1.0
+    images = DLA(N, 200, 1, Y)
+    images = prune_empty_space(images)
     t1 = time.time()
+    title_string = "Number of particles: {}; Y: {}".format(N,Y)
+    plt.title(title_string)
     plt.imshow(images[-1])
     plt.show()
     print(t1-t0)
