@@ -319,12 +319,18 @@ def DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y):
     
     DLA_animation.animimate_images(images, plot_title, movie_title)
     
-    s1 = "Max radius: {}".format(max_radius)
-    s2 = "Average radius: {}".format(avg_radius)
-    s3 = "Fractional Dimensionality: {}".format(fractional_dimensionality)
-    s4 = "Simulation time: {} seconds".format(t1-t0)
     
-    lines = [s1, s2, s3, s4]
+    s1 = "Particles: {}".format(N)
+    s2 = "Grid size: {}".format(GRID_SIZE)
+    s3 = "Sticking Probability: {}".format(STICKING_PROBABILITY)
+    s4 = "X: {}".format(X)
+    s5 = "Y: {}".format(Y)
+    s6 = "Max radius: {}".format(max_radius)
+    s7 = "Average radius: {}".format(avg_radius)
+    s8 = "Fractional Dimensionality: {}".format(fractional_dimensionality)
+    s9 = "Simulation time: {} seconds".format(t1-t0)
+    
+    lines = [s1, s2, s3, s4, s5, s6, s7, s8, s9]
     with open(log_title, 'w') as f:
         for line in lines:
             f.write(line)
@@ -332,18 +338,14 @@ def DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y):
             print(line)
             
     plt.close()
-
-
     
 if __name__ == "__main__":
     # Paramaters
     N = 100
-    GRID_SIZE = 300
+    GRID_SIZE = 400
     STICKING_PROBABILITY = 1
     X = 0
     Y = 0
-    
-    #DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
     
     # Classic DLA tests
     for N in [100, 200, 400, 800, 1600]:
