@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
+import DLA_animation
+
 DIRECTIONS = np.array([[-1,-1],[0,-1], [1,-1], [-1,0],[1,0],[-1,1], [0,1], [1,1]])
 #DIRECTIONS = np.array([[1,0],[-1,0],[0,1],[0,-1]])
 
@@ -19,7 +21,7 @@ def random_direction(dimension):
     direction[idx] = np.sign(np.random.uniform(-1.0,1.0))
     return direction
 
-def get_direction_that_points_towards_center(vector):
+def get_direction_that_points_towards_center(vector, epsilon = 0.4):
     # Create the direction vector
     direction = np.zeros(2)
     
@@ -28,7 +30,7 @@ def get_direction_that_points_towards_center(vector):
     max_dot = 0
     for d in DIRECTIONS:
         dot_product = np.dot(vector, d / np.linalg.norm(d))
-        if(dot_product > 0):
+        if(dot_product > epsilon):
             forward_directions.append(d)
             if(dot_product > max_dot):
                 max_dot = dot_product
@@ -46,14 +48,20 @@ def weighted_valid_direction(point, center, X, Y, matrix):
     assert(Y >= 0 and Y <= 1)
     
     # Find the vector pointing toward the center
-    center_direction = center - point
+    center_direction = (center - point)
+    center_direction = center_direction / np.linalg.norm(center_direction)
     center_direction, forward_directions = get_direction_that_points_towards_center(center_direction)
     
     # Weight for the direction pointing to the center
-    other_weights = (1-X) * (1-Y) /8.0
-    forward_weight = other_weights + X * (1-Y) * 5.0 / 8.0
+    other_weights = (1-X) * (1-Y) / len(DIRECTIONS)
+    forward_weight = other_weights + X * (1-Y) / len(forward_directions)
     pointing_weight = forward_weight + Y
     # Weight for the other directions
+    #print(other_weights)
+    #print(forward_weight)
+    #print(pointing_weight)
+    #print(forward_directions)
+    #print()
     
     
     weights = []
@@ -141,6 +149,22 @@ def get_max_radius_of_structure(matrix):
                     max_r = r
     return max_r
 
+def get_avg_radius_of_structure(matrix):
+    """ Returns the maximum radius of the structure. This information
+    is required in order to do the optimizations associated with Project 10
+    and Project 11. """
+    avg_r = 0
+    points = 0
+    for i in range(len(matrix)):
+        for j in range(len(matrix[i])):
+            # If there is a particle at the point
+            if(matrix[i][j] == 1):
+                points += 1
+                r = get_radius_of_point([i, j], matrix)
+                avg_r += r
+    avg_r /= float(points)
+    return avg_r
+
 
 def rotate(theta):
     R = np.zeros((2,2))
@@ -183,8 +207,13 @@ def DLA(particles, N=100, sticking_probablity=1.0, X=0.5, Y=0.5):
     
     while(numberOfSuccessfulSticks < particles):
         
+        #print(numberOfSuccessfulSticks)
+        
         launching_radius = np.round(2.0 * max_radius)
         despawn_radius = np.round(3.0 * max_radius)
+        #width = 3
+        #launching_radius = np.round(np.minimum(max_radius+width, 2.0 * max_radius))
+        #despawn_radius = launching_radius + width
         
         # We spawn a random walker at 2 times the max radius of the structure.
         # This check is to make sure that particles can't spawn outside of the
@@ -215,12 +244,12 @@ def DLA(particles, N=100, sticking_probablity=1.0, X=0.5, Y=0.5):
             # are allowed as the particle can move farther than intended in one
             # step
             # current_radius /= np.sqrt(2)
-#            if current_radius > max_radius + 4:
-#                step_size = int(np.floor(current_radius - max_radius - 2))
-#                assert(step_size >= 1)
-#                random_direction = random_direction / np.linalg.norm(random_direction)
-#                random_direction *= step_size
-#                random_direction = np.floor(random_direction)
+            if current_radius > max_radius + 4:
+                step_size = int(np.floor(current_radius - max_radius - 2))
+                assert(step_size >= 1)
+                random_direction = random_direction / np.linalg.norm(random_direction)
+                random_direction *= step_size
+                random_direction = np.floor(random_direction)
                 #print(random_direction)
             
             random_walker += random_direction
@@ -262,17 +291,72 @@ def prune_empty_space(images):
     
     return images
 
-if __name__ == "__main__":
-    t0 = time.time()
-    N = 200
-    X = 0.2
-    Y = 0.2
-    images = DLA(N, 200, 1, X, Y)
-    images = prune_empty_space(images)
-    t1 = time.time()
-    title_string = "Number of particles: {}; Y: {}".format(N,Y)
-    plt.title(title_string)
-    plt.imshow(images[-1])
-    plt.show()
-    print(t1-t0)
+
     
+def DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y):
+    
+    movie_title = 'results/city_test{}_X{}_Y{}_sticking{}.mp4'.format(N, int(round(X*100)), int(round(Y*100)), int(round(STICKING_PROBABILITY*100)))
+    image_title = movie_title.replace("mp4","png")
+    log_title = movie_title.replace("mp4","txt")
+    plot_title = "Particles = {}; X = {}; Y = {}; sticking = {}".format(N, X, Y, STICKING_PROBABILITY)
+    
+    # Simulation
+    t0 = time.time()
+    images = DLA(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
+    t1 = time.time()
+    
+    # Compute statistics
+    max_radius = get_max_radius_of_structure(images[-1])
+    avg_radius = get_avg_radius_of_structure(images[-1])
+    fractional_dimensionality = np.log(N) / np.log(max_radius)
+    
+    # Display and save results
+    images = prune_empty_space(images)
+    plt.title(plot_title)
+    plt.imshow(images[-1])
+    plt.savefig(image_title)
+    plt.show()
+    
+    DLA_animation.animimate_images(images, plot_title, movie_title)
+    
+    s1 = "Max radius: {}".format(max_radius)
+    s2 = "Average radius: {}".format(avg_radius)
+    s3 = "Fractional Dimensionality: {}".format(fractional_dimensionality)
+    s4 = "Simulation time: {} seconds".format(t1-t0)
+    
+    lines = [s1, s2, s3, s4]
+    with open(log_title, 'w') as f:
+        for line in lines:
+            f.write(line)
+            f.write('\n')
+            print(line)
+            
+    plt.close()
+
+
+    
+if __name__ == "__main__":
+    # Paramaters
+    N = 100
+    GRID_SIZE = 300
+    STICKING_PROBABILITY = 1
+    X = 0
+    Y = 0
+    
+    #DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
+    
+    # Classic DLA tests
+    for N in [100, 200, 400, 800, 1600]:
+        DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
+        
+    N = 1000
+    for STICKING_PROBABILITY in [1, 0.75, 0.5, 0.25, 0.1]:
+        DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
+        
+    STICKING_PROBABILITY = 1
+    for X in [0.25, 0.5, 0.75, 1]:
+        DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
+        
+    X = 0
+    for Y in [0.25, 0.5, 0.75, 1]:
+        DLA_trial(N, GRID_SIZE, STICKING_PROBABILITY, X, Y)
